@@ -1,1 +1,30 @@
-Dobrou noc :)
+## Malloc tutorial
+
+_TL:DR this will be a relatively short tutorial for implementing basic malloc,free,realloc function in C11 using mmap and best fit algorithm._
+
+Let's start with a short introduction of malloc, as we all know malloc is used to allocate chunk of memory. It's signature is:
+```c
+void *malloc(size_t size);
+```
+- Allocates atleast 'size' bytes
+- Returns pointer to the memory chunk or null if the space cannot be allocated
+- Returned pointer is suitably aligned
+- Malloc can't give that space to anyone else unless you free it
+
+Okay most of that stuff is pretty much common sense, maybe except what is 'suitably aligned'. Well the alignment itself is necessary for 2 main reasons.
+- Optimization (reading unaligned address requires multiple read instruction, aligned addresses require single read)
+- Platform support (Unaligned access can trigger a processor exception and kill the program)
+
+It's also undefined behaviour in C.
+
+Let's start with very simple malloc implementation, we get the size user wants, call directly mmap with the size and return it, if mmap fails return NULL
+```c
+void *malloc(size_t size){
+	void *ptr = mmap(0, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS , -1, 0);
+	if(ptr == MAP_FAILED){
+		return NULL;
+	}
+	return ptr;
+}
+```
+But this one is very inefficient, we are calling mmap for every single allocation and we are also wasting huge amount of space. Mmap returns pointer aligned to a page size, so if we are gonna allocate 200 bytes we will have to allocate atleast 1 page, which could be 4KiB, so we would waste 3896 bytes
